@@ -24,7 +24,7 @@ This checks and installs all dependencies (Python, ffmpeg, pip packages, venv).
 ./run.sh
 ```
 
-Open **http://localhost:5000** in your browser.
+Open **http://127.0.0.1:5000** in your browser.
 
 1. Paste a YouTube URL and click **Fetch**
 2. Choose format (video/audio) and quality
