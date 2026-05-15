@@ -10,6 +10,14 @@ A local web app to download YouTube videos, audio, or clips.
 - Real-time progress bar with speed and ETA
 - Auto-detects browser cookies for authenticated downloads
 
+## Prerequisite setup
+
+```bash
+git clone https://github.com/Garvitkul/yt-downloader.git
+cd yt-downloader
+chmod +x setup.sh run.sh
+```
+
 ## Setup
 
 ```bash
