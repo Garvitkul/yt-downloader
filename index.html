@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YT Downloader</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --red: #ff0033;
+            --red-glow: rgba(255, 0, 51, 0.4);
+            --dark: #050505;
+            --card: #0d0d0d;
+            --card-border: #1a1a1a;
+            --card-hover: #222;
+            --text: #f0f0f0;
+            --text-dim: #777;
+            --accent: #ff3355;
+        }
+
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background: var(--dark);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: 
+                radial-gradient(ellipse 80% 50% at 50% -20%, rgba(255, 0, 51, 0.12), transparent),
+                radial-gradient(ellipse 60% 40% at 80% 100%, rgba(120, 0, 255, 0.06), transparent),
+                radial-gradient(ellipse 50% 30% at 10% 80%, rgba(255, 50, 0, 0.05), transparent);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .noise {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.02'/%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .page {
+            position: relative;
+            z-index: 1;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+        }
+
+        .container { max-width: 580px; width: 100%; }
+
+        .hero {
+            text-align: center;
+            margin-bottom: 48px;
+        }
+
+        .hero h1 {
+            font-size: 2.8rem;
+            font-weight: 700;
+            letter-spacing: -2px;
+            margin-bottom: 10px;
+        }
+
+        .hero h1 span {
+            background: linear-gradient(to right, #fff 20%, var(--accent) 80%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero p {
+            color: var(--text-dim);
+            font-size: 1rem;
+            font-weight: 400;
+        }
+
+        .glass-card {
+            background: rgba(13, 13, 13, 0.8);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--card-border);
+            border-radius: 24px;
+            padding: 32px;
+            margin-bottom: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .glass-card:hover { border-color: #2a2a2a; }
+
+        .search-box {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            background: #111;
+            border: 1px solid #222;
+            border-radius: 16px;
+            padding: 6px 6px 6px 20px;
+            transition: all 0.3s;
+        }
+
+        .search-box:focus-within {
+            border-color: var(--red);
+            box-shadow: 0 0 0 4px rgba(255, 0, 51, 0.08);
+        }
+
+        .search-box input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            color: #fff;
+            font-size: 0.9rem;
+            font-family: inherit;
+            outline: none;
+            padding: 12px 0;
+        }
+
+        .search-box input::placeholder { color: #444; }
+
+        .btn {
+            border: none;
+            border-radius: 12px;
+            font-family: inherit;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .btn-primary {
+            padding: 14px 28px;
+            background: linear-gradient(135deg, var(--red), #cc0022);
+            color: #fff;
+            font-size: 0.9rem;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+        }
+
+        .btn-primary:active { transform: translateY(0); }
+
+        .btn-primary:disabled {
+            background: #222;
+            color: #555;
+            transform: none;
+            cursor: not-allowed;
+        }
+
+        .btn-ghost {
+            padding: 14px 24px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid #333;
+            color: #999;
+            font-size: 0.9rem;
+        }
+
+        .btn-ghost:hover { background: rgba(255, 255, 255, 0.06); color: #fff; border-color: #555; }
+
+        .btn-full { width: 100%; }
+
+        .video-panel {
+            display: none;
+            animation: fadeUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .video-panel.visible { display: block; }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .video-preview {
+            position: relative;
+            display: flex;
+            gap: 18px;
+            margin-bottom: 28px;
+            padding-bottom: 24px;
+            border-bottom: 1px solid #1a1a1a;
+        }
+
+        .video-preview img {
+            width: 200px;
+            height: 112px;
+            object-fit: cover;
+            border-radius: 14px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+        }
+
+        .video-preview .meta {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .video-preview .meta h3 {
+            font-size: 0.9rem;
+            font-weight: 600;
+            line-height: 1.4;
+            color: #fff;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .video-preview .meta .channel {
+            font-size: 0.85rem;
+            color: #666;
+        }
+
+        .video-preview .meta .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            background: rgba(255, 0, 51, 0.1);
+            border: 1px solid rgba(255, 0, 51, 0.2);
+            border-radius: 20px;
+            font-size: 0.75rem;
+            color: var(--accent);
+            font-weight: 500;
+            width: fit-content;
+            margin-top: 4px;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .control-field label {
+            display: block;
+            font-size: 0.75rem;
+            color: #555;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 500;
+        }
+
+        select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #222;
+            border-radius: 12px;
+            background: #111;
+            color: #ccc;
+            font-size: 0.9rem;
+            font-family: inherit;
+            outline: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' fill='%23555' viewBox='0 0 16 16'%3E%3Cpath d='M8 12L2 6h12l-6 6z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 16px center;
+        }
+
+        select:focus { border-color: var(--red); box-shadow: 0 0 0 3px rgba(255, 0, 51, 0.08); }
+
+        .trim-section {
+            margin-bottom: 28px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid #1a1a1a;
+            border-radius: 14px;
+        }
+
+        .trim-section .trim-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.75rem;
+            color: #555;
+            margin-bottom: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            font-weight: 500;
+        }
+
+        .trim-section .trim-label .optional {
+            font-size: 0.75rem;
+            color: #666;
+            text-transform: none;
+            letter-spacing: 0;
+            font-weight: 400;
+            padding: 2px 8px;
+            background: #1a1a1a;
+            border-radius: 4px;
+        }
+
+        .trim-row {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .time-group {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            background: #111;
+            border: 1px solid #222;
+            border-radius: 12px;
+            padding: 8px 12px;
+            transition: all 0.2s;
+        }
+
+        .time-group:focus-within {
+            border-color: var(--red);
+            box-shadow: 0 0 0 3px rgba(255, 0, 51, 0.08);
+        }
+
+        .time-group input {
+            width: 28px;
+            border: none;
+            background: transparent;
+            color: #ccc;
+            font-size: 0.9rem;
+            font-family: 'JetBrains Mono', monospace;
+            outline: none;
+            text-align: center;
+            padding: 4px 0;
+        }
+
+        .time-group input::placeholder { color: #444; }
+
+        .time-group .colon {
+            color: #444;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            user-select: none;
+        }
+
+        .time-group .time-label {
+            font-size: 0.75rem;
+            color: #444;
+            margin-left: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .trim-row .arrow {
+            color: #333;
+            font-size: 1.2rem;
+        }
+
+        .cancel-area {
+            width: 100%;
+            margin-top: 12px;
+            display: none;
+        }
+
+        .progress-area {
+            margin-top: 24px;
+            display: none;
+        }
+
+        .progress-area.visible { display: block; }
+
+        .progress-track {
+            width: 100%;
+            height: 4px;
+            background: #1a1a1a;
+            border-radius: 2px;
+            overflow: hidden;
+            margin-bottom: 12px;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--red), var(--accent));
+            border-radius: 2px;
+            transition: width 0.5s ease;
+            width: 0%;
+            box-shadow: 0 0 10px var(--red-glow);
+        }
+
+        .progress-info {
+            display: flex;
+            justify-content: space-between;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            color: #555;
+        }
+
+        .status-msg {
+            text-align: center;
+            margin-top: 24px;
+            font-size: 0.9rem;
+            color: #666;
+            min-height: 24px;
+            line-height: 1.6;
+        }
+
+        .status-msg.error { color: #ff4455; }
+        .status-msg.success { color: #22cc88; }
+        .status-msg.warning { color: #ffaa22; }
+
+        .spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid #222;
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        footer {
+            margin-top: 60px;
+            text-align: center;
+            position: relative;
+            z-index: 1;
+        }
+
+        footer::before {
+            content: '';
+            display: block;
+            width: 40px;
+            height: 2px;
+            background: linear-gradient(to right, transparent, #333, transparent);
+            margin: 0 auto 20px;
+        }
+
+        footer .made-by {
+            font-size: 1rem;
+            color: #555;
+            font-weight: 400;
+        }
+
+        footer .made-by strong {
+            color: #aaa;
+            font-weight: 600;
+        }
+
+        footer .links {
+            margin-top: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+        }
+
+        footer .links a {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: #666;
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            padding: 8px 14px;
+            border-radius: 8px;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+
+        footer .links a:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.03);
+            border-color: #333;
+        }
+
+        footer .links a svg {
+            width: 18px;
+            height: 18px;
+            fill: currentColor;
+        }
+
+        @media (max-width: 540px) {
+            .hero h1 { font-size: 2rem; letter-spacing: -1px; }
+            .video-preview { flex-direction: column; }
+            .video-preview img { width: 100%; height: auto; }
+            .controls { grid-template-columns: 1fr; }
+            .glass-card { padding: 24px; border-radius: 18px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="noise"></div>
+    <div class="page">
+        <div class="container">
+            <div class="hero">
+                <h1><span>YT Downloader</span></h1>
+                <p>Grab any YouTube video, clip, or audio in seconds</p>
+            </div>
+
+            <div class="glass-card">
+                <div class="search-box">
+                    <input type="text" id="url-input" placeholder="Paste a YouTube link...">
+                    <button class="btn btn-primary" id="fetch-btn" onclick="fetchInfo()">Fetch</button>
+                </div>
+            </div>
+
+            <div class="glass-card video-panel" id="video-panel">
+                <div class="video-preview">
+                    <img id="thumbnail" src="" alt="">
+                    <div class="meta">
+                        <h3 id="video-title"></h3>
+                        <p class="channel" id="video-channel"></p>
+                        <div class="badge" id="video-duration">⏱ --:--</div>
+                    </div>
+                </div>
+
+                <div class="controls">
+                    <div class="control-field">
+                        <label>Format</label>
+                        <select id="format-select" onchange="onFormatChange()">
+                            <option value="video">Video (MP4)</option>
+                            <option value="audio">Audio Only (MP3)</option>
+                        </select>
+                    </div>
+                    <div class="control-field" id="quality-group">
+                        <label>Quality</label>
+                        <select id="quality-select">
+                            <option value="">Best Available</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="trim-section">
+                    <div class="trim-label">
+                        Trim clip
+                        <span class="optional">optional</span>
+                    </div>
+                    <div class="trim-row">
+                        <div class="time-group" id="start-group">
+                            <input type="text" id="start-h" maxlength="2" placeholder="00" inputmode="numeric">
+                            <span class="colon">:</span>
+                            <input type="text" id="start-m" maxlength="2" placeholder="00" inputmode="numeric">
+                            <span class="colon">:</span>
+                            <input type="text" id="start-s" maxlength="2" placeholder="00" inputmode="numeric">
+                        </div>
+                        <span class="arrow">→</span>
+                        <div class="time-group" id="end-group">
+                            <input type="text" id="end-h" maxlength="2" placeholder="00" inputmode="numeric">
+                            <span class="colon">:</span>
+                            <input type="text" id="end-m" maxlength="2" placeholder="00" inputmode="numeric">
+                            <span class="colon">:</span>
+                            <input type="text" id="end-s" maxlength="2" placeholder="00" inputmode="numeric">
+                        </div>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary btn-full" id="download-btn" onclick="startDownload()">Download</button>
+                <div class="cancel-area" id="cancel-area">
+                    <button class="btn btn-ghost btn-full" id="cancel-btn" onclick="cancelDownload()">Cancel</button>
+                </div>
+
+                <div class="progress-area" id="progress-area">
+                    <div class="progress-track">
+                        <div class="progress-bar" id="progress-bar"></div>
+                    </div>
+                    <div class="progress-info">
+                        <span id="progress-text">0%</span>
+                        <span id="progress-speed"></span>
+                        <span id="progress-eta"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="status-msg" id="status"></div>
+        </div>
+
+        <footer>
+            <p class="made-by">Made by <strong>Garvit Kulshrestha</strong></p>
+            <div class="links">
+                <a href="https://www.linkedin.com/in/garvit-kulshrestha/" target="_blank" rel="noopener">
+                    <svg viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+                    LinkedIn
+                </a>
+                <a href="https://github.com/garvitkul" target="_blank" rel="noopener">
+                    <svg viewBox="0 0 24 24"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
+                    GitHub
+                </a>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        let videoData = null;
+        let currentJobId = null;
+        let pollInterval = null;
+
+        function setStatus(msg, type = '') {
+            const el = document.getElementById('status');
+            el.className = 'status-msg ' + type;
+            el.innerHTML = msg;
+        }
+
+        function timeToSeconds(timeStr) {
+            if (!timeStr || !timeStr.trim()) return null;
+            const parts = timeStr.trim().split(':').map(Number);
+            if (parts.some(isNaN)) return null;
+            if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+            if (parts.length === 2) return parts[0] * 60 + parts[1];
+            if (parts.length === 1) return parts[0];
+            return null;
+        }
+
+        function getTimeFromGroup(prefix) {
+            const h = document.getElementById(prefix + '-h').value.trim();
+            const m = document.getElementById(prefix + '-m').value.trim();
+            const s = document.getElementById(prefix + '-s').value.trim();
+            if (!h && !m && !s) return null;
+            const hours = Math.min(99, parseInt(h) || 0);
+            const mins = Math.min(59, parseInt(m) || 0);
+            const secs = Math.min(59, parseInt(s) || 0);
+            return hours * 3600 + mins * 60 + secs;
+        }
+
+        function setupTimeInput(id) {
+            const input = document.getElementById(id);
+            const isMinOrSec = id.endsWith('-m') || id.endsWith('-s');
+
+            input.addEventListener('input', (e) => {
+                e.target.value = e.target.value.replace(/[^0-9]/g, '');
+                if (isMinOrSec) {
+                    const val = parseInt(e.target.value);
+                    if (val > 59) e.target.value = '59';
+                }
+                if (e.target.value.length === 2) {
+                    const next = e.target.nextElementSibling;
+                    if (next && next.nextElementSibling) {
+                        next.nextElementSibling.focus();
+                    }
+                }
+            });
+
+            input.addEventListener('blur', (e) => {
+                if (e.target.value.length === 1) {
+                    e.target.value = '0' + e.target.value;
+                }
+            });
+
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Backspace' && e.target.value === '') {
+                    const prev = e.target.previousElementSibling;
+                    if (prev && prev.previousElementSibling) {
+                        prev.previousElementSibling.focus();
+                    }
+                }
+            });
+
+            input.addEventListener('focus', () => input.select());
+        }
+
+        ['start-h', 'start-m', 'start-s', 'end-h', 'end-m', 'end-s'].forEach(setupTimeInput);
+
+        function formatDuration(seconds) {
+            if (!seconds) return '--:--';
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = seconds % 60;
+            if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+            return `${m}:${String(s).padStart(2, '0')}`;
+        }
+
+        function formatBytes(bytes) {
+            if (!bytes || bytes === 0) return '0 B';
+            const units = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(1024));
+            return (bytes / Math.pow(1024, i)).toFixed(1) + ' ' + units[i];
+        }
+
+        function formatSpeed(bytesPerSec) {
+            if (!bytesPerSec || bytesPerSec === 0) return '';
+            return formatBytes(bytesPerSec) + '/s';
+        }
+
+        function formatEta(seconds) {
+            if (!seconds || seconds <= 0) return '';
+            if (seconds < 60) return `${Math.round(seconds)}s left`;
+            if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s left`;
+            return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m left`;
+        }
+
+        function onFormatChange() {
+            const format = document.getElementById('format-select').value;
+            document.getElementById('quality-group').style.display = format === 'audio' ? 'none' : 'block';
+        }
+
+        function showProgress(show) {
+            document.getElementById('progress-area').classList.toggle('visible', show);
+        }
+
+        function updateProgress(progress, speed, eta, downloaded, total) {
+            document.getElementById('progress-bar').style.width = progress + '%';
+            document.getElementById('progress-text').textContent =
+                total > 0 ? `${progress}% · ${formatBytes(downloaded)} / ${formatBytes(total)}` : `${progress}%`;
+            document.getElementById('progress-speed').textContent = formatSpeed(speed);
+            document.getElementById('progress-eta').textContent = formatEta(eta);
+        }
+
+        function setDownloading(active) {
+            document.getElementById('download-btn').disabled = active;
+            document.getElementById('download-btn').textContent = active ? 'Downloading...' : 'Download';
+            document.getElementById('cancel-area').style.display = active ? 'block' : 'none';
+            showProgress(active);
+            if (!active) updateProgress(0, 0, 0, 0, 0);
+        }
+
+        async function fetchInfo() {
+            const url = document.getElementById('url-input').value.trim();
+            if (!url) {
+                setStatus('Paste a YouTube URL above to get started', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('fetch-btn');
+            btn.disabled = true;
+            btn.textContent = '...';
+            setStatus('<span class="spinner"></span> Fetching video info...');
+
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 60000);
+
+            try {
+                const res = await fetch('/api/info', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url }),
+                    signal: controller.signal
+                });
+                clearTimeout(timeout);
+
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Failed to fetch info');
+
+                videoData = data;
+                document.getElementById('thumbnail').src = data.thumbnail;
+                document.getElementById('video-title').textContent = data.title;
+                document.getElementById('video-channel').textContent = data.channel;
+                document.getElementById('video-duration').textContent = '⏱ ' + formatDuration(data.duration);
+
+                const qualitySelect = document.getElementById('quality-select');
+                qualitySelect.innerHTML = '<option value="">Best Available</option>';
+                (data.qualities || []).forEach(q => {
+                    qualitySelect.innerHTML += `<option value="${q}">${q}p</option>`;
+                });
+
+                document.getElementById('video-panel').classList.add('visible');
+                setStatus('');
+            } catch (e) {
+                clearTimeout(timeout);
+                if (e.name === 'AbortError') {
+                    setStatus('✗ Timed out (60s). YouTube may be slow — try again.', 'error');
+                } else {
+                    setStatus('✗ ' + e.message, 'error');
+                }
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Fetch';
+            }
+        }
+
+        async function startDownload() {
+            const url = document.getElementById('url-input').value.trim();
+            if (!url) return;
+
+            const format = document.getElementById('format-select').value;
+            const quality = document.getElementById('quality-select').value || null;
+            const startTime = getTimeFromGroup('start');
+            const endTime = getTimeFromGroup('end');
+
+            if (startTime !== null && endTime !== null && startTime >= endTime) {
+                setStatus('✗ Start time must be before end time', 'error');
+                return;
+            }
+
+            if (videoData && startTime !== null && startTime >= videoData.duration) {
+                setStatus('✗ Start time exceeds video duration', 'error');
+                return;
+            }
+
+            setDownloading(true);
+            setStatus('<span class="spinner"></span> Connecting to YouTube...');
+
+            try {
+                const res = await fetch('/api/download/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        url, format, quality,
+                        start_time: startTime,
+                        end_time: endTime,
+                        duration: videoData ? videoData.duration : 0
+                    })
+                });
+
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Failed to start download');
+
+                currentJobId = data.job_id;
+                pollProgress();
+
+            } catch (e) {
+                setDownloading(false);
+                setStatus('✗ ' + e.message, 'error');
+            }
+        }
+
+        function pollProgress() {
+            if (pollInterval) clearInterval(pollInterval);
+
+            pollInterval = setInterval(async () => {
+                if (!currentJobId) {
+                    clearInterval(pollInterval);
+                    return;
+                }
+
+                try {
+                    const res = await fetch(`/api/download/progress/${currentJobId}`);
+                    const data = await res.json();
+
+                    if (!res.ok) {
+                        clearInterval(pollInterval);
+                        setDownloading(false);
+                        setStatus('✗ ' + (data.error || 'Job lost. Please try again.'), 'error');
+                        return;
+                    }
+
+                    if (data.status === 'downloading') {
+                        updateProgress(data.progress, data.speed, data.eta, data.downloaded_bytes, data.total_bytes);
+                        if (data.stalled) {
+                            if (data.stall_seconds > 60) {
+                                clearInterval(pollInterval);
+                                await cancelDownload();
+                                setStatus('⚠️ Download stalled and was auto-cancelled. YouTube may be throttling. Please try again.', 'error');
+                                return;
+                            } else {
+                                setStatus(`⚠️ No data for ${Math.round(data.stall_seconds)}s — waiting for YouTube. Auto-cancel at 60s.`, 'warning');
+                            }
+                        } else {
+                            setStatus('<span class="spinner"></span> Downloading...', '');
+                        }
+                    } else if (data.status === 'processing') {
+                        updateProgress(100, 0, 0, data.downloaded_bytes, data.total_bytes);
+                        setStatus('<span class="spinner"></span> Merging tracks... almost done.', '');
+                    } else if (data.status === 'done') {
+                        clearInterval(pollInterval);
+                        updateProgress(100, 0, 0, data.downloaded_bytes, data.total_bytes);
+                        setStatus('✓ Saving file...', 'success');
+                        await saveFile(currentJobId);
+                        setDownloading(false);
+                        currentJobId = null;
+                    } else if (data.status === 'error') {
+                        clearInterval(pollInterval);
+                        setDownloading(false);
+                        setStatus('✗ ' + (data.error || 'Download failed. Please try again.'), 'error');
+                        currentJobId = null;
+                    } else if (data.status === 'starting') {
+                        setStatus('<span class="spinner"></span> Connecting to YouTube...', '');
+                    }
+
+                } catch (e) { }
+            }, 2000);
+        }
+
+        async function saveFile(jobId) {
+            try {
+                const res = await fetch(`/api/download/file/${jobId}`);
+                if (!res.ok) {
+                    const data = await res.json();
+                    throw new Error(data.error || 'Failed to get file');
+                }
+
+                const blob = await res.blob();
+                const disposition = res.headers.get('Content-Disposition');
+                let filename = 'download';
+                if (disposition) {
+                    const match = disposition.match(/filename\*?=(?:UTF-8'')?["']?([^;"'\n]+)/i);
+                    if (match) filename = decodeURIComponent(match[1]);
+                }
+
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                URL.revokeObjectURL(a.href);
+
+                setStatus('✓ Download complete!', 'success');
+            } catch (e) {
+                setStatus('✗ ' + e.message, 'error');
+            }
+        }
+
+        async function cancelDownload() {
+            if (pollInterval) clearInterval(pollInterval);
+
+            if (currentJobId) {
+                try {
+                    await fetch(`/api/download/cancel/${currentJobId}`, { method: 'POST' });
+                } catch (e) {}
+                currentJobId = null;
+            }
+
+            setDownloading(false);
+            setStatus('Download cancelled.', '');
+        }
+
+        document.getElementById('url-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') fetchInfo();
+        });
+    </script>
+</body>
+</html>
