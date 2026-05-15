@@ -56,3 +56,5 @@ yt-downloader/
 ├── run.sh              # Start server
 └── venv/               # Virtual environment
 ```
+
+<img width="1726" height="823" alt="image" src="https://github.com/user-attachments/assets/91ebb1f7-3514-42f2-a1c1-3c5d793500d2" />
